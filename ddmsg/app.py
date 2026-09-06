@@ -12,6 +12,33 @@ from .dws import Client
 from .store import Store, now
 
 
+class CrossProcessRotatingFileHandler(RotatingFileHandler):
+    """Rotate safely when a listener and short-lived CLI commands share a log."""
+
+    def __init__(self, filename, lock_directory, **kwargs):
+        self.lock_directory = Path(lock_directory)
+        super().__init__(filename, delay=True, **kwargs)
+
+    def emit(self, record):
+        for attempt in range(40):
+            try:
+                with cache.locked(self.lock_directory):
+                    try:
+                        super().emit(record)
+                    finally:
+                        # Windows cannot rename a file held open by another
+                        # process. All ddmsg writers release it after each row.
+                        if self.stream:
+                            self.stream.close()
+                            self.stream = None
+                return
+            except RuntimeError:
+                if attempt == 39:
+                    self.handleError(record)
+                    return
+                time.sleep(0.025)
+
+
 class App:
     @staticmethod
     def public_source(row):
@@ -33,7 +60,8 @@ class App:
         self.log.setLevel(logging.INFO)
         self.log.propagate = False
         if not self.log.handlers:
-            handler = RotatingFileHandler(self.directory / "collector.log", maxBytes=256 * 1024, backupCount=2, encoding="utf-8")
+            handler = CrossProcessRotatingFileHandler(self.directory / "collector.log", self.directory / "log-lock",
+                maxBytes=256 * 1024, backupCount=2, encoding="utf-8")
             handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
             self.log.addHandler(handler)
 
