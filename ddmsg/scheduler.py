@@ -1,5 +1,6 @@
 """Native per-user launchd / Windows Task Scheduler, no credentials or elevation."""
 import datetime as dt
+import csv
 import getpass
 import hashlib
 import json
@@ -50,8 +51,9 @@ def windows_definition(config, mode, interval, python=None, user=None, start=Non
         return node
     root = ET.Element("{" + ns + "}Task", {"version": "1.2"})
     triggers = child(root, "Triggers")
-    logon = child(triggers, "LogonTrigger")
-    child(logon, "Enabled", "true")
+    # Standard Windows users can register their own recurring time trigger, but
+    # importing an XML task with a LogonTrigger can require elevated rights.
+    # StartWhenAvailable below resumes a missed recurring run after login.
     timed = child(triggers, "TimeTrigger")
     repeat = child(timed, "Repetition")
     child(repeat, "Interval", f"PT{interval}S")
@@ -61,7 +63,21 @@ def windows_definition(config, mode, interval, python=None, user=None, start=Non
     principals = child(root, "Principals")
     principal = child(principals, "Principal")
     principal.set("id", "Author")
-    username = user or ((os.environ.get("USERDOMAIN", "") + "\\" if os.environ.get("USERDOMAIN") else "") + getpass.getuser())
+    username = user
+    if username is None and os.name == "nt":
+        # schtasks XML imports for an InteractiveToken principal expect the
+        # current account SID. A DOMAIN\user name can be rejected with
+        # "Access is denied" even though that user can create normal tasks.
+        result = subprocess.run(["whoami", "/user", "/fo", "csv", "/nh"], capture_output=True,
+            text=True, encoding="utf-8", errors="replace", timeout=10,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        if result.returncode == 0:
+            for field in next(csv.reader(result.stdout.splitlines()), []):
+                if re.fullmatch(r"S-\d(?:-\d+)+", field.strip(), re.IGNORECASE):
+                    username = field.strip()
+                    break
+    if username is None:
+        username = ((os.environ.get("USERDOMAIN", "") + "\\" if os.environ.get("USERDOMAIN") else "") + getpass.getuser())
     child(principal, "UserId", username)
     child(principal, "LogonType", "InteractiveToken")
     child(principal, "RunLevel", "LeastPrivilege")

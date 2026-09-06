@@ -253,6 +253,8 @@ class SchedulerTests(unittest.TestCase):
             root = ET.fromstring(doc)
             self.assertEqual(root.findtext("t:Settings/t:MultipleInstancesPolicy", namespaces=ns), "IgnoreNew")
             self.assertEqual(root.findtext("t:Principals/t:Principal/t:LogonType", namespaces=ns), "InteractiveToken")
+            self.assertEqual(root.findtext("t:Principals/t:Principal/t:UserId", namespaces=ns), r"PC\Alice")
+            self.assertIsNone(root.find("t:Triggers/t:LogonTrigger", namespaces=ns))
             self.assertEqual(root.findtext("t:Actions/t:Exec/t:Command", namespaces=ns), r"C:\Program Files\Python\python.exe")
             arguments = root.findtext("t:Actions/t:Exec/t:Arguments", namespaces=ns)
             self.assertIn('"' + str(Path("/tmp/工作 目录/config.json").resolve()) + '"', arguments)
