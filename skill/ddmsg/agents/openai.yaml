@@ -1,0 +1,3 @@
+interface:
+  display_name: "钉钉工作消息"
+  short_description: "查询本地钉钉工作上下文、测试反馈和截图，并管理群聊与联系人关注"

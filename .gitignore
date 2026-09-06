@@ -1,0 +1,22 @@
+cache/
+config.json
+__pycache__/
+*.tmp
+*.egg-info/
+build/
+dist/
+.venv/
+
+# Local data, credentials, and runtime artifacts
+.env
+.env.*
+!.env.example
+*.sqlite
+*.sqlite3
+*.db
+*-wal
+*-shm
+*.log
+*.log.*
+.DS_Store
+Thumbs.db

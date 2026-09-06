@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ddmsg-local"
+version = "0.2.0"
+description = "Lightweight local DingTalk work context for AI agents, powered by DWS"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+ddmsg = "ddmsg.cli:main"
+
+[tool.setuptools]
+packages = ["ddmsg"]
+py-modules = ["cache", "ddmsg_cli"]
